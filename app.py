@@ -36,7 +36,6 @@ def init_db():
 
 init_db()
 
-# --- MPESA AUTH HELPER ---
 def get_access_token():
     res = requests.get(
         'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
@@ -44,7 +43,6 @@ def get_access_token():
     )
     return res.json().get('access_token')
 
-# --- MAIN ROUTES ---
 @app.route('/')
 def home():
     conn = sqlite3.connect('orders.db')
@@ -70,7 +68,6 @@ def home():
 def pay():
     phone = request.form.get('phone')
     amount = request.form.get('amount')
-    
     token = get_access_token()
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     password = base64.b64encode((MPESA_SHORTCODE + MPESA_PASSKEY + timestamp).encode()).decode()
@@ -88,7 +85,6 @@ def pay():
         "AccountReference": "PrinceFastFoods",
         "TransactionDesc": "Food Payment"
     }
-
     headers = {"Authorization": f"Bearer {token}"}
     requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
     
@@ -96,7 +92,6 @@ def pay():
     <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
         <h2>Processing Payment...</h2>
         <p>Please check your phone for the M-Pesa PIN prompt.</p>
-        <p>Once you enter your PIN, your order will be processed.</p>
         <a href="/" style="text-decoration:none; color:orange;">Back to Home</a>
     </div>
     """
@@ -105,36 +100,29 @@ def pay():
 def mpesa_callback():
     data = request.get_json()
     result_code = data['Body']['stkCallback']['ResultCode']
-    
     if result_code == 0:
         amount = data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
         today = datetime.now().strftime("%Y-%m-%d")
-        
         conn = sqlite3.connect('orders.db')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO sales (amount, sale_date) VALUES (?, ?)', (amount, today))
         conn.commit()
         conn.close()
-        print("Payment Successful and logged!")
-        
     return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"})
 
-# --- ADMIN ROUTES ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         if request.form.get('password') == 'Prince2026':
             session['logged_in'] = True
             return redirect(url_for('view_orders'))
-        else:
-            return "Invalid Password! <a href='/login'>Try again</a>"
-    
+        return "Invalid Password! <a href='/login'>Try again</a>"
     return '''
         <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
             <h2>👑 Prince Admin Login</h2>
             <form method="post">
-                <input type="password" name="password" placeholder="Password" style="padding:10px; border-radius:5px; border:1px solid #ccc;" required>
-                <button type="submit" style="padding:10px 20px; background:orange; color:white; border:none; border-radius:5px; cursor:pointer;">Login</button>
+                <input type="password" name="password" placeholder="Password" style="padding:10px;" required>
+                <button type="submit" style="padding:10px 20px; background:orange; color:white; border:none;">Login</button>
             </form>
         </div>
     '''
