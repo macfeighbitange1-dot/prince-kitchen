@@ -72,8 +72,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="cart-items" class="mb-3">
-                        </div>
+                    <div id="cart-items" class="mb-3"></div>
                     <hr>
                     <div class="d-flex justify-content-between fw-bold mb-3">
                         <span>Total:</span>
@@ -83,7 +82,8 @@
                     <form id="mpesa-form" action="/pay" method="POST">
                         <div class="mb-3">
                             <label class="form-label">Phone Number (M-Pesa)</label>
-                            <input type="text" name="phone" class="form-control" placeholder="2547XXXXXXXX" pattern="254[0-9]{9}" title="Please enter number starting with 254" required>
+                            <input type="text" name="phone" class="form-control" placeholder="e.g. 0712345678 or 0112345678" required>
+                            <small class="text-muted">Enter your M-Pesa number in any format.</small>
                         </div>
                         <input type="hidden" name="amount" id="form-total">
                         <button type="submit" id="pay-button" class="btn btn-success w-100 fw-bold py-2">
@@ -103,7 +103,6 @@
             cart.push({ name, price });
             saveCart();
             updateUI();
-            // Optional: Alert or visual feedback
         }
 
         function saveCart() {
