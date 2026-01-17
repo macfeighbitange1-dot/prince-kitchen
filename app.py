@@ -26,9 +26,17 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS sales 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, amount INTEGER, sale_date TEXT)''')
     
+    # Updated items list including new Sodas and Afya Juice
     items = [
-        ('Soft Chapati', 50, 20), ('Classic Chips', 30, 100), ('Swahili Pilau', 20, 150), 
-        ('Fresh Mango (500ml)', 15, 50), ('Passion Fruit (500ml)', 15, 50), ('Pineapple Juice (500ml)', 15, 50)
+        ('Soft Chapati', 50, 20), 
+        ('Classic Chips', 30, 100), 
+        ('Swahili Pilau', 20, 150), 
+        ('Fresh Mango (500ml)', 15, 50), 
+        ('Passion Fruit (500ml)', 15, 50), 
+        ('Pineapple Juice (500ml)', 15, 50),
+        ('Coca-Cola (500ml)', 25, 70),
+        ('Afya Juice (500ml)', 20, 80),
+        ('Coca-Cola (1L)', 15, 110)
     ]
     cursor.executemany('INSERT OR IGNORE INTO inventory VALUES (?, ?, ?)', items)
     conn.commit()
@@ -63,10 +71,15 @@ def home():
         {"name": "Classic Chips", "price": stock_map.get('Classic Chips', {}).get('price', 100), "img": "chips.jpg", "stock": stock_map.get('Classic Chips', {}).get('stock', 0)},
         {"name": "Swahili Pilau", "price": stock_map.get('Swahili Pilau', {}).get('price', 150), "img": "pilau.jpg", "stock": stock_map.get('Swahili Pilau', {}).get('stock', 0)}
     ]
+    
+    # Updated juices list to include Soda and Afya
     juices = [
         {"name": "Fresh Mango (500ml)", "price": 50, "img": "mango.jpg", "stock": stock_map.get('Fresh Mango (500ml)', {}).get('stock', 0)},
         {"name": "Passion Fruit (500ml)", "price": 50, "img": "passion.jpg", "stock": stock_map.get('Passion Fruit (500ml)', {}).get('stock', 0)},
-        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "stock": stock_map.get('Pineapple Juice (500ml)', {}).get('stock', 0)}
+        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "stock": stock_map.get('Pineapple Juice (500ml)', {}).get('stock', 0)},
+        {"name": "Afya Juice (500ml)", "price": 80, "img": "afya.jpg", "stock": stock_map.get('Afya Juice (500ml)', {}).get('stock', 0)},
+        {"name": "Coca-Cola (500ml)", "price": 70, "img": "coke500.jpg", "stock": stock_map.get('Coca-Cola (500ml)', {}).get('stock', 0)},
+        {"name": "Coca-Cola (1L)", "price": 110, "img": "coke1l.jpg", "stock": stock_map.get('Coca-Cola (1L)', {}).get('stock', 0)}
     ]
     return render_template('index.html', foods=foods, juices=juices)
 
@@ -75,18 +88,12 @@ def pay():
     raw_phone = request.form.get('phone').strip()
     amount = request.form.get('amount')
     
-    # --- PHONE FORMATTING LOGIC ---
-    # 1. Remove any '+' or spaces
     phone = raw_phone.replace("+", "").replace(" ", "")
-    
-    # 2. Convert 07... or 01... to 254...
     if phone.startswith('0'):
         phone = '254' + phone[1:]
-    # 3. If it starts with 7... or 1... (9 digits), add 254
     elif len(phone) == 9 and (phone.startswith('7') or phone.startswith('1')):
         phone = '254' + phone
     
-    # 4. Final Validation: Must be 12 digits and start with 254
     if not (phone.startswith('254') and len(phone) == 12):
         return f"<h3>Invalid Phone Number: {raw_phone}</h3><p>Please use 07xx, 01xx, or 254xx format.</p><a href='/'>Go Back</a>"
 
@@ -116,7 +123,7 @@ def pay():
     }
 
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
+    requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
     
     return f"""
     <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
@@ -131,17 +138,14 @@ def pay():
 def mpesa_callback():
     data = request.get_json()
     result_code = data['Body']['stkCallback']['ResultCode']
-    
     if result_code == 0:
         amount = data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
         today = datetime.now().strftime("%Y-%m-%d")
-        
         conn = sqlite3.connect('orders.db')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO sales (amount, sale_date) VALUES (?, ?)', (amount, today))
         conn.commit()
         conn.close()
-        
     return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"})
 
 @app.route('/login', methods=['GET', 'POST'])
