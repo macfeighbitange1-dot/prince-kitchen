@@ -72,10 +72,24 @@ def home():
 
 @app.route('/pay', methods=['POST'])
 def pay():
-    phone = request.form.get('phone')
+    raw_phone = request.form.get('phone').strip()
     amount = request.form.get('amount')
     
-    # Ensure amount is an integer (Safaricom requirement)
+    # --- PHONE FORMATTING LOGIC ---
+    # 1. Remove any '+' or spaces
+    phone = raw_phone.replace("+", "").replace(" ", "")
+    
+    # 2. Convert 07... or 01... to 254...
+    if phone.startswith('0'):
+        phone = '254' + phone[1:]
+    # 3. If it starts with 7... or 1... (9 digits), add 254
+    elif len(phone) == 9 and (phone.startswith('7') or phone.startswith('1')):
+        phone = '254' + phone
+    
+    # 4. Final Validation: Must be 12 digits and start with 254
+    if not (phone.startswith('254') and len(phone) == 12):
+        return f"<h3>Invalid Phone Number: {raw_phone}</h3><p>Please use 07xx, 01xx, or 254xx format.</p><a href='/'>Go Back</a>"
+
     try:
         amount = int(float(amount))
     except:
@@ -103,11 +117,10 @@ def pay():
 
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
-    print(f"M-Pesa Response: {response.text}") # Check your Render logs for this!
     
     return f"""
     <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
-        <h2 style="color:#e67e22;">Request Sent!</h2>
+        <h2 style="color:#e67e22;">Request Sent to {phone}!</h2>
         <p>Please check your phone for the M-Pesa PIN prompt.</p>
         <p>Once you pay, your order will be updated automatically.</p>
         <a href="/" style="text-decoration:none; color:#333; border:1px solid #ccc; padding:10px; border-radius:5px;">Return to Home</a>
@@ -130,8 +143,6 @@ def mpesa_callback():
         conn.close()
         
     return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"})
-
-# --- ADMIN MANAGEMENT ROUTES ---
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
