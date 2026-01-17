@@ -8,30 +8,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --foodie-orange: #e67e22; --royal-gold: #ffc107; }
-        body { background-color: #fdfaf5; } /* Cream background */
+        body { background-color: #fdfaf5; }
         .menu-img { height: 200px; object-fit: cover; border-radius: 8px 8px 0 0; }
         .card { border: none; transition: 0.3s; position: relative; border-radius: 12px; overflow: hidden; }
         .card:hover { transform: translateY(-8px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
         .price-tag { color: #d9534f; font-weight: bold; font-size: 1.3rem; }
-        
-        /* High-Conversion Button */
-        .order-btn { 
-            background-color: var(--foodie-orange); 
-            color: white; border: none; font-weight: bold; 
-            padding: 10px; border-radius: 8px; transition: 0.3s;
-        }
-        .order-btn:hover { background-color: #d35400; transform: scale(1.02); color: white; }
-
-        /* Floating Cart Button */
-        #cart-float {
-            position: fixed; bottom: 30px; right: 30px; z-index: 1000;
-            background: var(--foodie-orange); color: white;
-            width: 70px; height: 70px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer;
-        }
+        .order-btn { background-color: var(--foodie-orange); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 8px; transition: 0.3s; }
+        .order-btn:hover { background-color: #d35400; color: white; }
+        #cart-float { position: fixed; bottom: 30px; right: 30px; z-index: 1000; background: var(--foodie-orange); color: white; width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer; }
         .cart-badge { position: absolute; top: 0; right: 0; background: red; border-radius: 50%; padding: 4px 8px; font-size: 12px; }
-
         .category-header { border-left: 5px solid var(--royal-gold); padding-left: 10px; margin: 40px 0 20px; font-weight: bold; }
         .sold-out { filter: grayscale(100%); opacity: 0.6; pointer-events: none; }
     </style>
@@ -88,8 +73,7 @@
                 </div>
                 <div class="modal-body">
                     <div id="cart-items" class="mb-3">
-                        <p class="text-muted">Your cart is empty.</p>
-                    </div>
+                        </div>
                     <hr>
                     <div class="d-flex justify-content-between fw-bold mb-3">
                         <span>Total:</span>
@@ -99,10 +83,10 @@
                     <form id="mpesa-form" action="/pay" method="POST">
                         <div class="mb-3">
                             <label class="form-label">Phone Number (M-Pesa)</label>
-                            <input type="text" name="phone" class="form-control" placeholder="2547XXXXXXXX" required>
+                            <input type="text" name="phone" class="form-control" placeholder="2547XXXXXXXX" pattern="254[0-9]{9}" title="Please enter number starting with 254" required>
                         </div>
                         <input type="hidden" name="amount" id="form-total">
-                        <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                        <button type="submit" id="pay-button" class="btn btn-success w-100 fw-bold py-2">
                             Lipa na M-Pesa 💳
                         </button>
                     </form>
@@ -119,6 +103,7 @@
             cart.push({ name, price });
             saveCart();
             updateUI();
+            // Optional: Alert or visual feedback
         }
 
         function saveCart() {
@@ -130,14 +115,20 @@
             const totalDisplay = document.getElementById('cart-total');
             const formTotal = document.getElementById('form-total');
             const countDisplay = document.getElementById('cart-count');
+            const payButton = document.getElementById('pay-button');
 
             if (cart.length === 0) {
-                list.innerHTML = '<p class="text-muted">Your cart is empty.</p>';
+                list.innerHTML = '<p class="text-muted text-center">Your cart is empty.</p>';
+                payButton.disabled = true;
             } else {
+                payButton.disabled = false;
                 list.innerHTML = cart.map((item, index) => `
-                    <div class="d-flex justify-content-between mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
                         <span>${item.name}</span>
-                        <span>Ksh ${item.price} <i class="fas fa-times text-danger ms-2" onclick="removeItem(${index})" style="cursor:pointer"></i></span>
+                        <span>
+                            Ksh ${item.price} 
+                            <i class="fas fa-trash text-danger ms-2" onclick="removeItem(${index})" style="cursor:pointer"></i>
+                        </span>
                     </div>
                 `).join('');
             }
@@ -154,7 +145,7 @@
             updateUI();
         }
 
-        updateUI(); // Initial load
+        updateUI(); // Load cart on start
     </script>
 </body>
 </html>
