@@ -44,25 +44,47 @@
         </div>
     </header>
 
-    <section id="menu" class="container py-5">
-        <h3 class="category-header">Delicious Meals</h3>
-        <div class="row">
-            {% for item in foods %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm {% if item.stock <= 0 %}sold-out{% endif %}">
-                    <img src="{{ url_for('static', filename='images/' + item.img) }}" class="card-img-top menu-img">
-                    <div class="card-body text-center">
-                        <h5 class="fw-bold">{{ item.name }}</h5>
-                        <p class="price-tag">Ksh {{ item.price }}</p>
-                        <button class="order-btn w-100" onclick="addToCart('{{ item.name }}', {{ item.price }})">
-                            Add to Cart 🛒
-                        </button>
+    <main class="container py-5">
+        <section id="meals">
+            <h3 class="category-header">Delicious Meals</h3>
+            <div class="row">
+                {% for item in foods %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm {% if item.stock <= 0 %}sold-out{% endif %}">
+                        <img src="{{ url_for('static', filename='images/' + item.img) }}" class="card-img-top menu-img" alt="{{ item.name }}">
+                        <div class="card-body text-center">
+                            <h5 class="fw-bold">{{ item.name }}</h5>
+                            <p class="price-tag">Ksh {{ item.price }}</p>
+                            <button class="order-btn w-100" onclick="addToCart('{{ item.name }}', {{ item.price }})">
+                                Add to Cart 🛒
+                            </button>
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
-    </section>
+        </section>
+
+        <section id="drinks">
+            <h3 class="category-header">Refreshing Drinks & Juices</h3>
+            <div class="row">
+                {% for item in juices %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm {% if item.stock <= 0 %}sold-out{% endif %}">
+                        <img src="{{ url_for('static', filename='images/' + item.img) }}" class="card-img-top menu-img" alt="{{ item.name }}">
+                        <div class="card-body text-center">
+                            <h5 class="fw-bold">{{ item.name }}</h5>
+                            <p class="price-tag">Ksh {{ item.price }}</p>
+                            <button class="order-btn w-100" onclick="addToCart('{{ item.name }}', {{ item.price }})">
+                                Add to Cart 🛒
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
 
     <div class="modal fade" id="cartModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-md">
@@ -83,7 +105,7 @@
                         <div class="mb-3">
                             <label class="form-label">Phone Number (M-Pesa)</label>
                             <input type="text" name="phone" class="form-control" placeholder="e.g. 0712345678 or 0112345678" required>
-                            <small class="text-muted">Enter your M-Pesa number in any format.</small>
+                            <small class="text-muted">Enter your M-Pesa number (07..., 01..., or 254...)</small>
                         </div>
                         <input type="hidden" name="amount" id="form-total">
                         <button type="submit" id="pay-button" class="btn btn-success w-100 fw-bold py-2">
@@ -144,7 +166,7 @@
             updateUI();
         }
 
-        updateUI(); // Load cart on start
+        updateUI(); 
     </script>
 </body>
 </html>
