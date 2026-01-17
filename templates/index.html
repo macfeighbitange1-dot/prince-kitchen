@@ -5,25 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prince Fast Foods | Fresh & Affordable</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root { --foodie-orange: #e67e22; --royal-gold: #ffc107; }
+        body { background-color: #fdfaf5; } /* Cream background */
         .menu-img { height: 200px; object-fit: cover; border-radius: 8px 8px 0 0; }
-        .card { border: none; transition: 0.3s; position: relative; }
-        .card:hover { transform: translateY(-5px); }
-        .price-tag { color: #d9534f; font-weight: bold; font-size: 1.2rem; margin-bottom: 0; }
-        .category-header { border-left: 5px solid #ffc107; padding-left: 10px; margin: 30px 0; }
-        .sold-out { filter: grayscale(100%); opacity: 0.7; }
-        .stock-badge { position: absolute; top: 10px; right: 10px; z-index: 10; }
+        .card { border: none; transition: 0.3s; position: relative; border-radius: 12px; overflow: hidden; }
+        .card:hover { transform: translateY(-8px); box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important; }
+        .price-tag { color: #d9534f; font-weight: bold; font-size: 1.3rem; }
+        
+        /* High-Conversion Button */
+        .order-btn { 
+            background-color: var(--foodie-orange); 
+            color: white; border: none; font-weight: bold; 
+            padding: 10px; border-radius: 8px; transition: 0.3s;
+        }
+        .order-btn:hover { background-color: #d35400; transform: scale(1.02); color: white; }
+
+        /* Floating Cart Button */
+        #cart-float {
+            position: fixed; bottom: 30px; right: 30px; z-index: 1000;
+            background: var(--foodie-orange); color: white;
+            width: 70px; height: 70px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer;
+        }
+        .cart-badge { position: absolute; top: 0; right: 0; background: red; border-radius: 50%; padding: 4px 8px; font-size: 12px; }
+
+        .category-header { border-left: 5px solid var(--royal-gold); padding-left: 10px; margin: 40px 0 20px; font-weight: bold; }
+        .sold-out { filter: grayscale(100%); opacity: 0.6; pointer-events: none; }
     </style>
 </head>
 <body>
+
+    <div id="cart-float" data-bs-toggle="modal" data-bs-target="#cartModal">
+        <i class="fas fa-shopping-cart fa-2x"></i>
+        <span class="cart-badge" id="cart-count">0</span>
+    </div>
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container">
             <a class="navbar-brand fw-bold" href="#">👑 PRINCE FAST FOODS</a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="#menu">Menu</a>
-                <a class="nav-link" href="#contact">Order Now</a>
                 <a class="nav-link text-warning fw-bold" href="/admin/orders">Admin Dashboard</a>
             </div>
         </div>
@@ -33,93 +56,105 @@
         <div class="container">
             <h1 class="display-4 fw-bold">Taste the Royal Difference</h1>
             <p class="lead">Serving the best Chapati, Pilau, and Fresh Juices in town.</p>
-            <a href="#menu" class="btn btn-dark btn-lg px-4">Explore Our Menu</a>
         </div>
     </header>
 
     <section id="menu" class="container py-5">
-        <h2 class="text-center mb-2 fw-bold">Our Royal Menu</h2>
-        <p class="text-center text-muted mb-5">Quality food at pocket-friendly prices</p>
-        
         <h3 class="category-header">Delicious Meals</h3>
         <div class="row">
             {% for item in foods %}
             <div class="col-md-4 mb-4">
                 <div class="card h-100 shadow-sm {% if item.stock <= 0 %}sold-out{% endif %}">
-                    {% if item.stock > 0 %}
-                        <span class="badge bg-success stock-badge">In Stock: {{ item.stock }}</span>
-                    {% else %}
-                        <span class="badge bg-danger stock-badge">SOLD OUT</span>
-                    {% endif %}
+                    <img src="{{ url_for('static', filename='images/' + item.img) }}" class="card-img-top menu-img">
+                    <div class="card-body text-center">
+                        <h5 class="fw-bold">{{ item.name }}</h5>
+                        <p class="price-tag">Ksh {{ item.price }}</p>
+                        <button class="order-btn w-100" onclick="addToCart('{{ item.name }}', {{ item.price }})">
+                            Add to Cart 🛒
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="modal fade" id="cartModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-md">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title">Your Royal Basket</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cart-items" class="mb-3">
+                        <p class="text-muted">Your cart is empty.</p>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between fw-bold mb-3">
+                        <span>Total:</span>
+                        <span>Ksh <span id="cart-total">0</span></span>
+                    </div>
                     
-                    <img src="{{ url_for('static', filename='images/' + item.img) }}" class="card-img-top menu-img" alt="{{ item.name }}">
-                    <div class="card-body text-center">
-                        <h5 class="card-title fw-bold">{{ item.name }}</h5>
-                        <p class="card-text text-muted small">{{ item.desc }}</p>
-                        {% if item.stock > 0 %}
-                            <p class="price-tag">{{ item.price }}</p>
-                        {% else %}
-                            <p class="text-muted"><del>{{ item.price }}</del></p>
-                        {% endif %}
-                    </div>
+                    <form id="mpesa-form" action="/pay" method="POST">
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number (M-Pesa)</label>
+                            <input type="text" name="phone" class="form-control" placeholder="2547XXXXXXXX" required>
+                        </div>
+                        <input type="hidden" name="amount" id="form-total">
+                        <button type="submit" class="btn btn-success w-100 fw-bold py-2">
+                            Lipa na M-Pesa 💳
+                        </button>
+                    </form>
                 </div>
             </div>
-            {% endfor %}
         </div>
+    </div>
 
-        <h3 class="category-header">Fresh Juices (500ml)</h3>
-        <div class="row">
-            {% for item in juices %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm {% if item.stock <= 0 %}sold-out{% endif %}">
-                    {% if item.stock > 0 %}
-                        <span class="badge bg-primary stock-badge">Available: {{ item.stock }}</span>
-                    {% else %}
-                        <span class="badge bg-danger stock-badge">SOLD OUT</span>
-                    {% endif %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let cart = JSON.parse(localStorage.getItem('princeCart')) || [];
 
-                    <img src="{{ url_for('static', filename='images/' + item.img) }}" class="card-img-top menu-img" alt="{{ item.name }}">
-                    <div class="card-body text-center">
-                        <h5 class="card-title fw-bold">{{ item.name }}</h5>
-                        <p class="card-text text-muted small">{{ item.desc }}</p>
-                        {% if item.stock > 0 %}
-                            <p class="price-tag text-primary">{{ item.price }}</p>
-                        {% else %}
-                            <p class="text-muted"><del>{{ item.price }}</del></p>
-                        {% endif %}
+        function addToCart(name, price) {
+            cart.push({ name, price });
+            saveCart();
+            updateUI();
+        }
+
+        function saveCart() {
+            localStorage.setItem('princeCart', JSON.stringify(cart));
+        }
+
+        function updateUI() {
+            const list = document.getElementById('cart-items');
+            const totalDisplay = document.getElementById('cart-total');
+            const formTotal = document.getElementById('form-total');
+            const countDisplay = document.getElementById('cart-count');
+
+            if (cart.length === 0) {
+                list.innerHTML = '<p class="text-muted">Your cart is empty.</p>';
+            } else {
+                list.innerHTML = cart.map((item, index) => `
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>${item.name}</span>
+                        <span>Ksh ${item.price} <i class="fas fa-times text-danger ms-2" onclick="removeItem(${index})" style="cursor:pointer"></i></span>
                     </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
+                `).join('');
+            }
 
-    <section id="contact" class="bg-light py-5">
-        <div class="container" style="max-width: 600px;">
-            <h2 class="text-center fw-bold">Place an Order</h2>
-            <p class="text-center mb-4">Tell us what you want and your location!</p>
-            <form action="/contact" method="POST" class="mt-4 shadow p-4 bg-white rounded border-top border-warning border-5">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Name</label>
-                    <input type="text" name="name" class="form-control" placeholder="Your Name" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Email address</label>
-                    <input type="email" name="email" class="form-control" placeholder="name@example.com" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Your Order Details</label>
-                    <textarea name="message" class="form-control" rows="4" placeholder="Example: 2 Chapatis, 1 Pilau and 2 Mango juices" required></textarea>
-                </div>
-                <button type="submit" class="btn btn-warning w-100 fw-bold py-2">Submit Royal Order</button>
-            </form>
-        </div>
-    </section>
+            const total = cart.reduce((sum, item) => sum + item.price, 0);
+            totalDisplay.innerText = total;
+            formTotal.value = total;
+            countDisplay.innerText = cart.length;
+        }
 
-    <footer class="bg-dark text-white text-center py-4">
-        <p class="mb-0 fw-bold">&copy; 2026 Prince Fast Foods | All Rights Reserved</p>
-        <p class="small text-muted">Excellence in every bite.</p>
-    </footer>
+        function removeItem(index) {
+            cart.splice(index, 1);
+            saveCart();
+            updateUI();
+        }
 
+        updateUI(); // Initial load
+    </script>
 </body>
 </html>
