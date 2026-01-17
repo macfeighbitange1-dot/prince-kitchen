@@ -9,7 +9,7 @@ import json
 app = Flask(__name__)
 app.secret_key = 'prince_fast_foods_secure_key_2026' 
 
-# --- MPESA CONFIG (Using your Sandbox Credentials) ---
+# --- MPESA CONFIG ---
 MPESA_CONSUMER_KEY = 'tebgdbs5GY2cAgzQo8S4FbAtGEfJoFGvRtGLGFApdYfAJLqm'
 MPESA_CONSUMER_SECRET = 'fgqRJ6Qi0AAjsfkNW6dD39Vs7EGhgzSGG9Rz5dgKxWHbP5KCkhqb43ICBg5jAgzb'
 MPESA_SHORTCODE = '174379'
@@ -84,7 +84,7 @@ def pay():
         "PartyA": phone,
         "PartyB": MPESA_SHORTCODE,
         "PhoneNumber": phone,
-        "CallBackURL": "https://prince-kitchen.onrender.com/callback", # Replace with your actual Render URL
+        "CallBackURL": "https://prince-kitchen.onrender.com/callback",
         "AccountReference": "PrinceFastFoods",
         "TransactionDesc": "Food Payment"
     }
@@ -92,16 +92,21 @@ def pay():
     headers = {"Authorization": f"Bearer {token}"}
     requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
     
-    return f"<h3>Processing Payment...</h3><p>Check your phone for the PIN prompt.</p><a href='/'>Return to Home</a>"
+    return f"""
+    <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
+        <h2>Processing Payment...</h2>
+        <p>Please check your phone for the M-Pesa PIN prompt.</p>
+        <p>Once you enter your PIN, your order will be processed.</p>
+        <a href="/" style="text-decoration:none; color:orange;">Back to Home</a>
+    </div>
+    """
 
-# --- MPESA CALLBACK ROUTE ---
 @app.route('/callback', methods=['POST'])
 def mpesa_callback():
     data = request.get_json()
     result_code = data['Body']['stkCallback']['ResultCode']
     
     if result_code == 0:
-        # Success! Save sale to database
         amount = data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
         today = datetime.now().strftime("%Y-%m-%d")
         
@@ -121,14 +126,30 @@ def login():
         if request.form.get('password') == 'Prince2026':
             session['logged_in'] = True
             return redirect(url_for('view_orders'))
-    return '''<form method="post">Password: <input type="password" name="password"><button type="submit">Login</button></form>'''
+        else:
+            return "Invalid Password! <a href='/login'>Try again</a>"
+    
+    return '''
+        <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
+            <h2>👑 Prince Admin Login</h2>
+            <form method="post">
+                <input type="password" name="password" placeholder="Password" style="padding:10px; border-radius:5px; border:1px solid #ccc;" required>
+                <button type="submit" style="padding:10px 20px; background:orange; color:white; border:none; border-radius:5px; cursor:pointer;">Login</button>
+            </form>
+        </div>
+    '''
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('home'))
 
 @app.route('/admin/orders')
 def view_orders():
     if not session.get('logged_in'): return redirect(url_for('login'))
     conn = sqlite3.connect('orders.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT id, name, email, message, order_date FROM orders ORDER BY id DESC')
+    cursor.execute('SELECT id, name, email, message, order_date, status FROM orders ORDER BY id DESC')
     all_orders = cursor.fetchall()
     cursor.execute('SELECT * FROM inventory')
     inventory = cursor.fetchall()
