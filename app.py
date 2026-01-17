@@ -4,14 +4,15 @@ import requests
 from requests.auth import HTTPBasicAuth
 from datetime import datetime, timedelta
 import base64
+import json
 
 app = Flask(__name__)
 app.secret_key = 'prince_fast_foods_secure_key_2026' 
 
-# --- MPESA CONFIG (Get these from developers.safaricom.co.ke) ---
-MPESA_CONSUMER_KEY = 'YOUR_KEY_HERE'
-MPESA_CONSUMER_SECRET = 'YOUR_SECRET_HERE'
-MPESA_SHORTCODE = '174379' # This is the Sandbox Paybill
+# --- MPESA CONFIG (Using your Sandbox Credentials) ---
+MPESA_CONSUMER_KEY = 'tebgdbs5GY2cAgzQo8S4FbAtGEfJoFGvRtGLGFApdYfAJLqm'
+MPESA_CONSUMER_SECRET = 'fgqRJ6Qi0AAjsfkNW6dD39Vs7EGhgzSGG9Rz5dgKxWHbP5KCkhqb43ICBg5jAgzb'
+MPESA_SHORTCODE = '174379'
 MPESA_PASSKEY = 'bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919'
 
 # --- DATABASE SETUP ---
@@ -19,7 +20,7 @@ def init_db():
     conn = sqlite3.connect('orders.db')
     cursor = conn.cursor()
     cursor.execute('''CREATE TABLE IF NOT EXISTS orders 
-        (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, message TEXT, order_date TEXT)''')
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT, message TEXT, order_date TEXT, status TEXT DEFAULT 'Pending')''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS inventory 
         (item_name TEXT PRIMARY KEY, stock_count INTEGER DEFAULT 0, unit_price INTEGER DEFAULT 0)''')
     cursor.execute('''CREATE TABLE IF NOT EXISTS sales 
@@ -51,25 +52,23 @@ def home():
     cursor.execute('SELECT item_name, stock_count, unit_price FROM inventory')
     data = cursor.fetchall()
     conn.close()
-    
     stock_map = {row[0]: {"stock": row[1], "price": row[2]} for row in data}
     
     foods = [
-        {"name": "Soft Chapati", "price": stock_map.get('Soft Chapati')['price'], "img": "chapati.jpg", "desc": "Hand-rolled.", "stock": stock_map.get('Soft Chapati')['stock']},
-        {"name": "Classic Chips", "price": stock_map.get('Classic Chips')['price'], "img": "chips.jpg", "desc": "Crispy golden.", "stock": stock_map.get('Classic Chips')['stock']},
-        {"name": "Swahili Pilau", "price": stock_map.get('Swahili Pilau')['price'], "img": "pilau.jpg", "desc": "Fragrant beef.", "stock": stock_map.get('Swahili Pilau')['stock']}
+        {"name": "Soft Chapati", "price": stock_map.get('Soft Chapati', {}).get('price', 20), "img": "chapati.jpg", "desc": "Hand-rolled.", "stock": stock_map.get('Soft Chapati', {}).get('stock', 0)},
+        {"name": "Classic Chips", "price": stock_map.get('Classic Chips', {}).get('price', 100), "img": "chips.jpg", "desc": "Crispy golden.", "stock": stock_map.get('Classic Chips', {}).get('stock', 0)},
+        {"name": "Swahili Pilau", "price": stock_map.get('Swahili Pilau', {}).get('price', 150), "img": "pilau.jpg", "desc": "Fragrant beef.", "stock": stock_map.get('Swahili Pilau', {}).get('stock', 0)}
     ]
     juices = [
-        {"name": "Fresh Mango (500ml)", "price": 50, "img": "mango.jpg", "desc": "Sun-ripened.", "stock": stock_map.get('Fresh Mango (500ml)')['stock']},
-        {"name": "Passion Fruit (500ml)", "price": 50, "img": "passion.jpg", "desc": "Tangy delight.", "stock": stock_map.get('Passion Fruit (500ml)')['stock']},
-        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "desc": "Freshly squeezed.", "stock": stock_map.get('Pineapple Juice (500ml)')['stock']}
+        {"name": "Fresh Mango (500ml)", "price": 50, "img": "mango.jpg", "desc": "Sun-ripened.", "stock": stock_map.get('Fresh Mango (500ml)', {}).get('stock', 0)},
+        {"name": "Passion Fruit (500ml)", "price": 50, "img": "passion.jpg", "desc": "Tangy delight.", "stock": stock_map.get('Passion Fruit (500ml)', {}).get('stock', 0)},
+        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "desc": "Freshly squeezed.", "stock": stock_map.get('Pineapple Juice (500ml)', {}).get('stock', 0)}
     ]
     return render_template('index.html', foods=foods, juices=juices)
 
-# --- M-PESA PAYMENT ROUTE ---
 @app.route('/pay', methods=['POST'])
 def pay():
-    phone = request.form.get('phone') # Expected: 2547XXXXXXXX
+    phone = request.form.get('phone')
     amount = request.form.get('amount')
     
     token = get_access_token()
@@ -85,18 +84,59 @@ def pay():
         "PartyA": phone,
         "PartyB": MPESA_SHORTCODE,
         "PhoneNumber": phone,
-        "CallBackURL": "https://yourdomain.com/callback", # Change this to your Render URL later
+        "CallBackURL": "https://prince-kitchen.onrender.com/callback", # Replace with your actual Render URL
         "AccountReference": "PrinceFastFoods",
         "TransactionDesc": "Food Payment"
     }
 
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
+    requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
     
-    return f"<h3>Processing Payment...</h3><p>Check your phone for the M-Pesa PIN prompt.</p><a href='/'>Return to Home</a>"
+    return f"<h3>Processing Payment...</h3><p>Check your phone for the PIN prompt.</p><a href='/'>Return to Home</a>"
 
-# --- EXISTING ADMIN ROUTES (KEEP THESE AS IS) ---
-# ... [Include login, logout, view_orders, complete_order, update_stock from your previous code] ...
+# --- MPESA CALLBACK ROUTE ---
+@app.route('/callback', methods=['POST'])
+def mpesa_callback():
+    data = request.get_json()
+    result_code = data['Body']['stkCallback']['ResultCode']
+    
+    if result_code == 0:
+        # Success! Save sale to database
+        amount = data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        conn = sqlite3.connect('orders.db')
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO sales (amount, sale_date) VALUES (?, ?)', (amount, today))
+        conn.commit()
+        conn.close()
+        print("Payment Successful and logged!")
+        
+    return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"})
+
+# --- ADMIN ROUTES ---
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        if request.form.get('password') == 'Prince2026':
+            session['logged_in'] = True
+            return redirect(url_for('view_orders'))
+    return '''<form method="post">Password: <input type="password" name="password"><button type="submit">Login</button></form>'''
+
+@app.route('/admin/orders')
+def view_orders():
+    if not session.get('logged_in'): return redirect(url_for('login'))
+    conn = sqlite3.connect('orders.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, name, email, message, order_date FROM orders ORDER BY id DESC')
+    all_orders = cursor.fetchall()
+    cursor.execute('SELECT * FROM inventory')
+    inventory = cursor.fetchall()
+    today = datetime.now().strftime("%Y-%m-%d")
+    cursor.execute('SELECT SUM(amount) FROM sales WHERE sale_date = ?', (today,))
+    daily_total = cursor.fetchone()[0] or 0
+    conn.close()
+    return render_template('admin.html', orders=all_orders, inventory=inventory, daily_total=daily_total)
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
