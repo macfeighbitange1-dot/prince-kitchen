@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, j
 import sqlite3
 import requests
 from requests.auth import HTTPBasicAuth
-from datetime import datetime, timedelta
+from datetime import datetime
 import base64
 import json
 
@@ -36,13 +36,19 @@ def init_db():
 
 init_db()
 
+# --- MPESA AUTH HELPER ---
 def get_access_token():
-    res = requests.get(
-        'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
-        auth=HTTPBasicAuth(MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET)
-    )
-    return res.json().get('access_token')
+    try:
+        res = requests.get(
+            'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+            auth=HTTPBasicAuth(MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET)
+        )
+        return res.json().get('access_token')
+    except Exception as e:
+        print(f"Error getting token: {e}")
+        return None
 
+# --- MAIN ROUTES ---
 @app.route('/')
 def home():
     conn = sqlite3.connect('orders.db')
@@ -53,14 +59,14 @@ def home():
     stock_map = {row[0]: {"stock": row[1], "price": row[2]} for row in data}
     
     foods = [
-        {"name": "Soft Chapati", "price": stock_map.get('Soft Chapati', {}).get('price', 20), "img": "chapati.jpg", "desc": "Hand-rolled.", "stock": stock_map.get('Soft Chapati', {}).get('stock', 0)},
-        {"name": "Classic Chips", "price": stock_map.get('Classic Chips', {}).get('price', 100), "img": "chips.jpg", "desc": "Crispy golden.", "stock": stock_map.get('Classic Chips', {}).get('stock', 0)},
-        {"name": "Swahili Pilau", "price": stock_map.get('Swahili Pilau', {}).get('price', 150), "img": "pilau.jpg", "desc": "Fragrant beef.", "stock": stock_map.get('Swahili Pilau', {}).get('stock', 0)}
+        {"name": "Soft Chapati", "price": stock_map.get('Soft Chapati', {}).get('price', 20), "img": "chapati.jpg", "stock": stock_map.get('Soft Chapati', {}).get('stock', 0)},
+        {"name": "Classic Chips", "price": stock_map.get('Classic Chips', {}).get('price', 100), "img": "chips.jpg", "stock": stock_map.get('Classic Chips', {}).get('stock', 0)},
+        {"name": "Swahili Pilau", "price": stock_map.get('Swahili Pilau', {}).get('price', 150), "img": "pilau.jpg", "stock": stock_map.get('Swahili Pilau', {}).get('stock', 0)}
     ]
     juices = [
-        {"name": "Fresh Mango (500ml)", "price": 50, "img": "mango.jpg", "desc": "Sun-ripened.", "stock": stock_map.get('Fresh Mango (500ml)', {}).get('stock', 0)},
-        {"name": "Passion Fruit (500ml)", "price": 50, "img": "passion.jpg", "desc": "Tangy delight.", "stock": stock_map.get('Passion Fruit (500ml)', {}).get('stock', 0)},
-        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "desc": "Freshly squeezed.", "stock": stock_map.get('Pineapple Juice (500ml)', {}).get('stock', 0)}
+        {"name": "Fresh Mango (500ml)", "price": 50, "img": "mango.jpg", "stock": stock_map.get('Fresh Mango (500ml)', {}).get('stock', 0)},
+        {"name": "Passion Fruit (500ml)", "price": 50, "img": "passion.jpg", "stock": stock_map.get('Passion Fruit (500ml)', {}).get('stock', 0)},
+        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "stock": stock_map.get('Pineapple Juice (500ml)', {}).get('stock', 0)}
     ]
     return render_template('index.html', foods=foods, juices=juices)
 
@@ -68,7 +74,16 @@ def home():
 def pay():
     phone = request.form.get('phone')
     amount = request.form.get('amount')
+    
+    # Ensure amount is an integer (Safaricom requirement)
+    try:
+        amount = int(float(amount))
+    except:
+        return "Invalid Amount", 400
+
     token = get_access_token()
+    if not token: return "Error Authenticating with M-Pesa", 500
+
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     password = base64.b64encode((MPESA_SHORTCODE + MPESA_PASSKEY + timestamp).encode()).decode()
 
@@ -85,14 +100,17 @@ def pay():
         "AccountReference": "PrinceFastFoods",
         "TransactionDesc": "Food Payment"
     }
+
     headers = {"Authorization": f"Bearer {token}"}
-    requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
+    response = requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
+    print(f"M-Pesa Response: {response.text}") # Check your Render logs for this!
     
     return f"""
     <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
-        <h2>Processing Payment...</h2>
+        <h2 style="color:#e67e22;">Request Sent!</h2>
         <p>Please check your phone for the M-Pesa PIN prompt.</p>
-        <a href="/" style="text-decoration:none; color:orange;">Back to Home</a>
+        <p>Once you pay, your order will be updated automatically.</p>
+        <a href="/" style="text-decoration:none; color:#333; border:1px solid #ccc; padding:10px; border-radius:5px;">Return to Home</a>
     </div>
     """
 
@@ -100,15 +118,20 @@ def pay():
 def mpesa_callback():
     data = request.get_json()
     result_code = data['Body']['stkCallback']['ResultCode']
+    
     if result_code == 0:
         amount = data['Body']['stkCallback']['CallbackMetadata']['Item'][0]['Value']
         today = datetime.now().strftime("%Y-%m-%d")
+        
         conn = sqlite3.connect('orders.db')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO sales (amount, sale_date) VALUES (?, ?)', (amount, today))
         conn.commit()
         conn.close()
+        
     return jsonify({"ResultCode": 0, "ResultDesc": "Accepted"})
+
+# --- ADMIN MANAGEMENT ROUTES ---
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -121,16 +144,11 @@ def login():
         <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
             <h2>👑 Prince Admin Login</h2>
             <form method="post">
-                <input type="password" name="password" placeholder="Password" style="padding:10px;" required>
-                <button type="submit" style="padding:10px 20px; background:orange; color:white; border:none;">Login</button>
+                <input type="password" name="password" placeholder="Password" style="padding:10px; border-radius:5px; border:1px solid #ccc;" required>
+                <button type="submit" style="padding:10px 20px; background:orange; color:white; border:none; border-radius:5px; cursor:pointer;">Login</button>
             </form>
         </div>
     '''
-
-@app.route('/logout')
-def logout():
-    session.pop('logged_in', None)
-    return redirect(url_for('home'))
 
 @app.route('/admin/orders')
 def view_orders():
@@ -146,6 +164,33 @@ def view_orders():
     daily_total = cursor.fetchone()[0] or 0
     conn.close()
     return render_template('admin.html', orders=all_orders, inventory=inventory, daily_total=daily_total)
+
+@app.route('/admin/update_stock', methods=['POST'])
+def update_stock():
+    if not session.get('logged_in'): return redirect(url_for('login'))
+    item_name = request.form.get('item_name')
+    new_count = request.form.get('new_count')
+    conn = sqlite3.connect('orders.db')
+    cursor = conn.cursor()
+    cursor.execute('UPDATE inventory SET stock_count = ? WHERE item_name = ?', (new_count, item_name))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('view_orders'))
+
+@app.route('/complete/<int:order_id>', methods=['POST'])
+def complete_order(order_id):
+    if not session.get('logged_in'): return redirect(url_for('login'))
+    conn = sqlite3.connect('orders.db')
+    cursor = conn.cursor()
+    cursor.execute("UPDATE orders SET status = 'Completed' WHERE id = ?", (order_id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('view_orders'))
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)
