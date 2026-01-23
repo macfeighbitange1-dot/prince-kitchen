@@ -7,7 +7,7 @@ import base64
 import json
 
 app = Flask(__name__)
-app.secret_key = 'prince_fast_foods_secure_key_2026' 
+app.secret_key = 'spring_on_the_go_secure_key_2026' 
 
 # --- MPESA CONFIG ---
 MPESA_CONSUMER_KEY = 'tebgdbs5GY2cAgzQo8S4FbAtGEfJoFGvRtGLGFApdYfAJLqm'
@@ -26,17 +26,22 @@ def init_db():
     cursor.execute('''CREATE TABLE IF NOT EXISTS sales 
         (id INTEGER PRIMARY KEY AUTOINCREMENT, amount INTEGER, sale_date TEXT)''')
     
-    # Updated items list including new Sodas and Afya Juice
+    # Rebranded Inventory: Convenience Store Edition
+    # Format: (Item Name, Initial Stock, Price)
     items = [
-        ('Soft Chapati', 50, 20), 
-        ('Classic Chips', 30, 100), 
-        ('Swahili Pilau', 20, 150), 
-        ('Fresh Mango (500ml)', 15, 50), 
-        ('Passion Fruit (500ml)', 15, 50), 
-        ('Pineapple Juice (500ml)', 15, 50),
+        # Snacks & Hot Beverages
+        ('Hot Coffee / Tea', 50, 100), 
+        ('Freshly Baked Pie', 20, 150), 
+        ('Assorted Crisps', 40, 50), 
+        # Cold Drinks
         ('Coca-Cola (500ml)', 25, 70),
+        ('Coca-Cola (1L)', 15, 110),
         ('Afya Juice (500ml)', 20, 80),
-        ('Coca-Cola (1L)', 15, 110)
+        ('Fresh Mango Juice', 15, 120),
+        # Household & Convenience
+        ('Milk (500ml)', 30, 65),
+        ('Loaf of Bread', 20, 65),
+        ('Detergent Packet', 15, 250)
     ]
     cursor.executemany('INSERT OR IGNORE INTO inventory VALUES (?, ?, ?)', items)
     conn.commit()
@@ -64,24 +69,27 @@ def home():
     cursor.execute('SELECT item_name, stock_count, unit_price FROM inventory')
     data = cursor.fetchall()
     conn.close()
+    
+    # Map database values to UI
     stock_map = {row[0]: {"stock": row[1], "price": row[2]} for row in data}
     
-    foods = [
-        {"name": "Soft Chapati", "price": stock_map.get('Soft Chapati', {}).get('price', 20), "img": "chapati.jpg", "stock": stock_map.get('Soft Chapati', {}).get('stock', 0)},
-        {"name": "Classic Chips", "price": stock_map.get('Classic Chips', {}).get('price', 100), "img": "chips.jpg", "stock": stock_map.get('Classic Chips', {}).get('stock', 0)},
-        {"name": "Swahili Pilau", "price": stock_map.get('Swahili Pilau', {}).get('price', 150), "img": "pilau.jpg", "stock": stock_map.get('Swahili Pilau', {}).get('stock', 0)}
+    # Logic for Snacks & Essentials
+    snacks_essentials = [
+        {"name": "Hot Coffee / Tea", "price": stock_map.get('Hot Coffee / Tea', {}).get('price', 100), "img": "coffee.jpg", "stock": stock_map.get('Hot Coffee / Tea', {}).get('stock', 0)},
+        {"name": "Freshly Baked Pie", "price": stock_map.get('Freshly Baked Pie', {}).get('price', 150), "img": "pie.jpg", "stock": stock_map.get('Freshly Baked Pie', {}).get('stock', 0)},
+        {"name": "Assorted Crisps", "price": stock_map.get('Assorted Crisps', {}).get('price', 50), "img": "snacks.jpg", "stock": stock_map.get('Assorted Crisps', {}).get('stock', 0)},
+        {"name": "Loaf of Bread", "price": stock_map.get('Loaf of Bread', {}).get('price', 65), "img": "bread.jpg", "stock": stock_map.get('Loaf of Bread', {}).get('stock', 0)}
     ]
     
-    # Updated juices list to include Soda and Afya
-    juices = [
-        {"name": "Fresh Mango (500ml)", "price": 50, "img": "mango.jpg", "stock": stock_map.get('Fresh Mango (500ml)', {}).get('stock', 0)},
-        {"name": "Passion Fruit (500ml)", "price": 50, "img": "passion.jpg", "stock": stock_map.get('Passion Fruit (500ml)', {}).get('stock', 0)},
-        {"name": "Pineapple Juice (500ml)", "price": 50, "img": "pineapple.jpg", "stock": stock_map.get('Pineapple Juice (500ml)', {}).get('stock', 0)},
-        {"name": "Afya Juice (500ml)", "price": 80, "img": "afya.jpg", "stock": stock_map.get('Afya Juice (500ml)', {}).get('stock', 0)},
+    # Logic for Cold Drinks & Juices
+    drinks = [
         {"name": "Coca-Cola (500ml)", "price": 70, "img": "coke500.jpg", "stock": stock_map.get('Coca-Cola (500ml)', {}).get('stock', 0)},
-        {"name": "Coca-Cola (1L)", "price": 110, "img": "coke1l.jpg", "stock": stock_map.get('Coca-Cola (1L)', {}).get('stock', 0)}
+        {"name": "Coca-Cola (1L)", "price": 110, "img": "coke1l.jpg", "stock": stock_map.get('Coca-Cola (1L)', {}).get('stock', 0)},
+        {"name": "Afya Juice (500ml)", "price": 80, "img": "afya.jpg", "stock": stock_map.get('Afya Juice (500ml)', {}).get('stock', 0)},
+        {"name": "Milk (500ml)", "price": 65, "img": "milk.jpg", "stock": stock_map.get('Milk (500ml)', {}).get('stock', 0)}
     ]
-    return render_template('index.html', foods=foods, juices=juices)
+    
+    return render_template('index.html', snacks=snacks_essentials, drinks=drinks)
 
 @app.route('/pay', methods=['POST'])
 def pay():
@@ -95,7 +103,7 @@ def pay():
         phone = '254' + phone
     
     if not (phone.startswith('254') and len(phone) == 12):
-        return f"<h3>Invalid Phone Number: {raw_phone}</h3><p>Please use 07xx, 01xx, or 254xx format.</p><a href='/'>Go Back</a>"
+        return f"<h3>Invalid Phone: {raw_phone}</h3><p>Use 07xx, 01xx, or 254xx format.</p><a href='/'>Go Back</a>"
 
     try:
         amount = int(float(amount))
@@ -103,7 +111,7 @@ def pay():
         return "Invalid Amount", 400
 
     token = get_access_token()
-    if not token: return "Error Authenticating with M-Pesa", 500
+    if not token: return "Authentication Failed", 500
 
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
     password = base64.b64encode((MPESA_SHORTCODE + MPESA_PASSKEY + timestamp).encode()).decode()
@@ -118,19 +126,18 @@ def pay():
         "PartyB": MPESA_SHORTCODE,
         "PhoneNumber": phone,
         "CallBackURL": "https://prince-kitchen.onrender.com/callback",
-        "AccountReference": "PrinceFastFoods",
-        "TransactionDesc": "Food Payment"
+        "AccountReference": "SpringOnTheGo",
+        "TransactionDesc": "Convenience Store Payment"
     }
 
     headers = {"Authorization": f"Bearer {token}"}
     requests.post('https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest', json=payload, headers=headers)
     
     return f"""
-    <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
-        <h2 style="color:#e67e22;">Request Sent to {phone}!</h2>
-        <p>Please check your phone for the M-Pesa PIN prompt.</p>
-        <p>Once you pay, your order will be updated automatically.</p>
-        <a href="/" style="text-decoration:none; color:#333; border:1px solid #ccc; padding:10px; border-radius:5px;">Return to Home</a>
+    <div style="text-align:center; margin-top:100px; font-family:sans-serif; background:#f8f9fa; padding:20px;">
+        <h2 style="color:#2ecc71;">Spring on the Go: Request Sent!</h2>
+        <p>Confirm the M-Pesa prompt on your phone (254***{phone[-3:]}).</p>
+        <a href="/" style="text-decoration:none; background:#34495e; color:white; padding:10px 20px; border-radius:5px;">Return to Shop</a>
     </div>
     """
 
@@ -154,13 +161,13 @@ def login():
         if request.form.get('password') == 'Prince2026':
             session['logged_in'] = True
             return redirect(url_for('view_orders'))
-        return "Invalid Password! <a href='/login'>Try again</a>"
+        return "Invalid! <a href='/login'>Try again</a>"
     return '''
         <div style="text-align:center; margin-top:100px; font-family:sans-serif;">
-            <h2>👑 Prince Admin Login</h2>
+            <h2>🏪 Spring Admin Portal</h2>
             <form method="post">
-                <input type="password" name="password" placeholder="Password" style="padding:10px; border-radius:5px; border:1px solid #ccc;" required>
-                <button type="submit" style="padding:10px 20px; background:orange; color:white; border:none; border-radius:5px; cursor:pointer;">Login</button>
+                <input type="password" name="password" placeholder="Admin Key" style="padding:10px; border-radius:5px;" required>
+                <button type="submit" style="padding:10px 20px; background:#2c3e50; color:white; border:none; border-radius:5px;">Unlock</button>
             </form>
         </div>
     '''
@@ -188,16 +195,6 @@ def update_stock():
     conn = sqlite3.connect('orders.db')
     cursor = conn.cursor()
     cursor.execute('UPDATE inventory SET stock_count = ? WHERE item_name = ?', (new_count, item_name))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('view_orders'))
-
-@app.route('/complete/<int:order_id>', methods=['POST'])
-def complete_order(order_id):
-    if not session.get('logged_in'): return redirect(url_for('login'))
-    conn = sqlite3.connect('orders.db')
-    cursor = conn.cursor()
-    cursor.execute("UPDATE orders SET status = 'Completed' WHERE id = ?", (order_id,))
     conn.commit()
     conn.close()
     return redirect(url_for('view_orders'))
