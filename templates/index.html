@@ -4,23 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spring on the Go | Your Convenience Destination</title>
+    
+    <meta name="description" content="Spring on the Go - Fast, Hassle-Free Shopping with M-Pesa. Snacks, drinks, and essentials with free parking.">
+    <meta property="og:title" content="Spring on the Go Convenience Store">
+    <meta property="og:description" content="Order snacks, drinks, and essentials for pickup. Quick M-Pesa checkout.">
+    <meta property="og:type" content="website">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --spring-blue: #2c3e50; --spring-green: #27ae60; --accent-orange: #e67e22; }
         body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .menu-img { height: 180px; object-fit: cover; border-radius: 8px 8px 0 0; }
+        .menu-img { height: 180px; object-fit: cover; border-radius: 8px 8px 0 0; background-color: #eee; }
         .card { border: none; transition: 0.3s; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .card:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.1) !important; }
         .price-tag { color: var(--spring-green); font-weight: bold; font-size: 1.2rem; }
         .order-btn { background-color: var(--spring-blue); color: white; border: none; font-weight: bold; padding: 10px; border-radius: 8px; transition: 0.3s; }
         .order-btn:hover { background-color: var(--spring-green); color: white; }
-        #cart-float { position: fixed; bottom: 30px; right: 30px; z-index: 1000; background: var(--accent-orange); color: white; width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer; }
+        
+        #cart-float { position: fixed; bottom: 30px; right: 30px; z-index: 1000; background: var(--accent-orange); color: white; width: 65px; height: 65px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); cursor: pointer; border: 2px solid white; }
         .cart-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; border-radius: 50%; padding: 4px 8px; font-size: 12px; border: 2px solid white; }
+        
         .category-header { border-left: 5px solid var(--spring-green); padding-left: 15px; margin: 40px 0 20px; font-weight: bold; color: var(--spring-blue); }
         .sold-out { filter: grayscale(100%); opacity: 0.5; pointer-events: none; }
-        .hero-section { background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000'); background-size: cover; background-position: center; color: white; padding: 100px 0; }
+        
+        .hero-section { background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&q=80&w=1000'); background-size: cover; background-position: center; color: white; padding: 100px 0; }
         .feature-icon { font-size: 1.5rem; color: var(--spring-green); margin-bottom: 10px; }
+        .whatsapp-btn { background-color: #25d366; color: white; font-weight: bold; }
+        .whatsapp-btn:hover { background-color: #128c7e; color: white; }
     </style>
 </head>
 <body>
@@ -41,13 +52,13 @@
 
     <header class="hero-section text-center">
         <div class="container">
-            <h1 class="display-3 fw-bold mb-3">Welcome to Spring on the Go!</h1>
+            <h1 class="display-3 fw-bold mb-3">Spring on the Go</h1>
             <p class="lead fs-4 mb-4">Your Ultimate Convenience Destination in Town.</p>
             <div class="row mt-5">
-                <div class="col-md-3"><i class="fas fa-parking feature-icon"></i><p>Free Parking</p></div>
-                <div class="col-md-3"><i class="fas fa-bolt feature-icon"></i><p>Hassle-Free Shopping</p></div>
-                <div class="col-md-3"><i class="fas fa-smile feature-icon"></i><p>Top-Notch Service</p></div>
-                <div class="col-md-3"><i class="fas fa-box-open feature-icon"></i><p>Wide Selection</p></div>
+                <div class="col-md-3 col-6 mb-3"><i class="fas fa-parking feature-icon"></i><p>Free Parking</p></div>
+                <div class="col-md-3 col-6 mb-3"><i class="fas fa-bolt feature-icon"></i><p>Hassle-Free</p></div>
+                <div class="col-md-3 col-6 mb-3"><i class="fas fa-smile feature-icon"></i><p>Top Service</p></div>
+                <div class="col-md-3 col-6 mb-3"><i class="fas fa-box-open feature-icon"></i><p>Wide Selection</p></div>
             </div>
         </div>
     </header>
@@ -74,7 +85,7 @@
         </section>
 
         <section id="drinks">
-            <h3 class="category-header">Cold Drinks & Household Essentials</h3>
+            <h3 class="category-header">Cold Drinks & Essentials</h3>
             <div class="row">
                 {% for item in drinks %}
                 <div class="col-md-3 col-6 mb-4">
@@ -107,6 +118,7 @@
                         <span>Total Payable:</span>
                         <span class="text-success">Ksh <span id="cart-total">0</span></span>
                     </div>
+                    
                     <form id="mpesa-form" action="/pay" method="POST" class="mt-4">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Lipa na M-Pesa Number</label>
@@ -117,6 +129,12 @@
                             Complete Purchase 💳
                         </button>
                     </form>
+
+                    <hr>
+                    <a href="https://wa.me/2547XXXXXXXX?text=Hello%20Spring%20on%20the%20Go%2C%20I%20have%20an%20inquiry%20about%20my%20order." 
+                       class="btn whatsapp-btn w-100 py-2">
+                        <i class="fab fa-whatsapp"></i> Chat with Us
+                    </a>
                 </div>
             </div>
         </div>
@@ -130,6 +148,9 @@
             cart.push({ name, price });
             saveCart();
             updateUI();
+            
+            // Subtle toast or vibration could go here
+            console.log("Added " + name + " to cart.");
         }
 
         function saveCart() {
@@ -144,13 +165,17 @@
             const payButton = document.getElementById('pay-button');
 
             if (cart.length === 0) {
-                list.innerHTML = '<div class="text-center py-4"><i class="fas fa-shopping-cart fa-3x text-light"></i><p class="mt-2">Your bag is empty.</p></div>';
+                list.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-shopping-basket fa-3x text-light mb-3"></i>
+                        <p class="text-muted">Your bag is empty. Start shopping!</p>
+                    </div>`;
                 payButton.disabled = true;
             } else {
                 payButton.disabled = false;
                 list.innerHTML = cart.map((item, index) => `
-                    <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded mb-2">
-                        <span>${item.name}</span>
+                    <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded-3 mb-2">
+                        <span class="fw-medium">${item.name}</span>
                         <span class="fw-bold">
                             Ksh ${item.price} 
                             <i class="fas fa-times-circle text-danger ms-2" onclick="removeItem(${index})" style="cursor:pointer"></i>
@@ -171,6 +196,7 @@
             updateUI();
         }
 
+        // Initialize UI on load
         updateUI();
     </script>
 </body>
